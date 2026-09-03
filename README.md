@@ -1,32 +1,67 @@
-# React + TypeScript + Vite
+# Draftly
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Draftly is a lightweight Google Docs-inspired document editor built as a full-stack product engineering take-home assignment.
 
-Currently, two official plugins are available:
+## Live Demo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Frontend: https://draftly-53u9j11rt-sripad-pks-projects.vercel.app
 
-## React Compiler
+Backend API: https://draftly-2iua.onrender.com
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the Oxlint configuration
+- Create documents
+- Rename documents
+- Rich-text editing
+- Bold, italic, underline
+- H1 and H2 headings
+- Bulleted and numbered lists
+- Save and reopen documents
+- Persistent storage with Supabase Postgres
+- Import `.txt` and `.md` files into editable documents
+- Share documents with another seeded user
+- Owned documents and "Shared with Me" views
+- Mocked authentication with two seeded users
+- Basic validation and error handling
+- Automated validation tests
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Tech Stack
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+### Frontend
+- React
+- TypeScript
+- Vite
+- TipTap
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### Backend
+- Node.js
+- Express
+- TypeScript
+
+### Database
+- Supabase Postgres
+
+### Deployment
+- Vercel for frontend
+- Render for backend
+
+## Seeded Users
+
+The assignment uses mocked authentication rather than production authentication.
+
+- Sripad PK — sripad2602@gmail.com
+- Alex Johnson — alex@example.com
+
+## File Import
+
+Draftly supports `.txt` and `.md` files.
+
+Imported files are converted into editable plain-text paragraphs. Markdown syntax is intentionally not parsed into rich formatting in this version.
+
+## Local Setup
+
+### Frontend
+
+```bash
+npm install
+npm run dev
