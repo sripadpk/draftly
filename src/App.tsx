@@ -90,7 +90,7 @@ function App() {
     if (!currentUser) return
 
     try {
-      const response = await fetch('${API_URL}/api/documents', {
+      const response = await fetch(`${API_URL}/api/documents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ function App() {
 
     // Create a new document first
     const createResponse = await fetch(
-      '${API_URL}/api/documents',
+      `${API_URL}/api/documents`,
       {
         method: 'POST',
         headers: {
