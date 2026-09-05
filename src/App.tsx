@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react'
 import DocumentEditor from './DocumentEditor'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { documentsApi } from './lib/api'
+import type { DocumentSummary } from './types'
 
 type User = {
   id: string
   name: string
   email: string
-}
-
-type Document = {
-  id: string
-  title: string
-  updated_at: string
 }
 
 const USERS: User[] = [
@@ -30,7 +24,7 @@ const USERS: User[] = [
 
 function getUniqueFileTitle(
   fileName: string,
-  existingDocuments: Document[]
+  existingDocuments: DocumentSummary[]
 ) {
   const normalizedName = fileName.replace(
     /(\.(txt|md))+$/i,
@@ -67,8 +61,8 @@ function getUniqueFileTitle(
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [view, setView] = useState<'owned' | 'shared'>('owned')
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [sharedDocuments, setSharedDocuments] = useState<Document[]>([])
+  const [documents, setDocuments] = useState<DocumentSummary[]>([])
+  const [sharedDocuments, setSharedDocuments] = useState<DocumentSummary[]>([])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -80,75 +74,47 @@ function App() {
   }, [currentUser])
 
   async function loadDocuments() {
-    if (!currentUser) return
+  if (!currentUser) return
 
-    setLoading(true)
+  setLoading(true)
 
-    try {
-      const ownedResponse = await fetch(
-        `${API_URL}/api/documents?ownerId=${currentUser.id}`
-      )
+  try {
+    const ownedData = await documentsApi.listMine(currentUser.id)
+    setDocuments(ownedData)
 
-      if (!ownedResponse.ok) {
-        throw new Error('Failed to load documents')
-      }
+    const sharedData = await documentsApi.listShared(currentUser.id)
 
-      const ownedData = await ownedResponse.json()
-      setDocuments(ownedData)
+    const shared = sharedData
+      .filter((item) => item.documents)
+      .map((item) => ({
+        id: item.documents!.id,
+        title: item.documents!.title,
+        updated_at: item.documents!.updated_at,
+      }))
 
-      const sharedResponse = await fetch(
-        `${API_URL}/api/shared-documents?userId=${currentUser.id}`
-      )
-
-      if (!sharedResponse.ok) {
-        throw new Error('Failed to load shared documents')
-      }
-
-      const sharedData = await sharedResponse.json()
-
-      const shared = sharedData
-        .filter((item: any) => item.documents)
-        .map((item: any) => ({
-          id: item.documents.id,
-          title: item.documents.title,
-          updated_at: item.documents.updated_at,
-        }))
-
-      setSharedDocuments(shared)
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
+    setSharedDocuments(shared)
+  } catch (error) {
+    console.error(error)
+  } finally {
+    setLoading(false)
   }
+}
 
   async function createDocument() {
-    if (!currentUser) return
+  if (!currentUser) return
 
-    try {
-      const response = await fetch(`${API_URL}/api/documents`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: 'Untitled Document',
-          ownerId: currentUser.id,
-        }),
-      })
+  try {
+    const document = await documentsApi.create(
+      'Untitled Document',
+      currentUser.id
+    )
 
-      if (!response.ok) {
-        throw new Error('Failed to create document')
-      }
-
-      const document = await response.json()
-
-      setDocuments((current) => [document, ...current])
-      setSelectedDocumentId(document.id)
-    } catch (error) {
-      console.error(error)
-    }
+    setDocuments((current) => [document, ...current])
+    setSelectedDocumentId(document.id)
+  } catch (error) {
+    console.error(error)
   }
+}
 
   async function handleFileUpload(
   event: React.ChangeEvent<HTMLInputElement>
@@ -158,6 +124,7 @@ function App() {
   if (!file || !currentUser) return
 
   const allowedTypes = ['.txt', '.md']
+
   const extension = file.name
     .substring(file.name.lastIndexOf('.'))
     .toLowerCase()
@@ -173,30 +140,16 @@ function App() {
   try {
     const content = await file.text()
 
-    // Create a uniquely named document
-const uniqueTitle = getUniqueFileTitle(file.name, documents)
+    const uniqueTitle = getUniqueFileTitle(
+      file.name,
+      documents
+    )
 
-const createResponse = await fetch(
-  `${API_URL}/api/documents`,
-  {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      title: uniqueTitle,
-      ownerId: currentUser.id,
-    }),
-  }
-)
+    const document = await documentsApi.create(
+      uniqueTitle,
+      currentUser.id
+    )
 
-    if (!createResponse.ok) {
-      throw new Error('Failed to create document')
-    }
-
-    const document = await createResponse.json()
-
-    // Convert plain file text into Tiptap document structure
     const paragraphs = content
       .split(/\r?\n/)
       .map((line) => ({
@@ -214,24 +167,13 @@ const createResponse = await fetch(
           : [{ type: 'paragraph' }],
     }
 
-    // Save imported content into the new document
-    const updateResponse = await fetch(
-      `${API_URL}/api/documents/${document.id}`,
+    await documentsApi.update(
+      document.id,
       {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: document.title,
-          content: editorContent,
-        }),
+        title: document.title,
+        content: editorContent,
       }
     )
-
-    if (!updateResponse.ok) {
-      throw new Error('Failed to import file content')
-    }
 
     setDocuments((current) => [
       {

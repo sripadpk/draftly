@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+import { documentsApi } from './lib/api'
 
 type DocumentEditorProps = {
   documentId: string
@@ -31,100 +30,65 @@ function DocumentEditor({ documentId, onBack }: DocumentEditorProps) {
   }, [documentId])
 
   async function loadDocument() {
-    try {
-      const response = await fetch(
-        `${API_URL}/api/documents/${documentId}`
-      )
+  try {
+    const document = await documentsApi.get(documentId)
 
-      if (!response.ok) {
-        throw new Error('Failed to load document')
-      }
+    setTitle(document.title)
 
-      const document = await response.json()
-
-      setTitle(document.title)
-
-      if (editor) {
-        editor.commands.setContent(document.content)
-      }
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setLoading(false)
+    if (editor) {
+      editor.commands.setContent(document.content)
     }
+  } catch (error) {
+    console.error(error)
+  } finally {
+    setLoading(false)
   }
+}
 
   async function saveDocument() {
-    if (!editor) return
+  if (!editor) return
 
-    setSaving(true)
+  setSaving(true)
 
-    try {
-      const response = await fetch(
-        `${API_URL}/api/documents/${documentId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title,
-            content: editor.getJSON(),
-          }),
-        }
-      )
+  try {
+    await documentsApi.update(documentId, {
+      title,
+      content: editor.getJSON(),
+    })
+  } catch (error) {
+    console.error(error)
+  } finally {
+    setSaving(false)
+  }
+}
 
-      if (!response.ok) {
-        throw new Error('Failed to save document')
-      }
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setSaving(false)
-    }
+  async function shareDocument() {
+  if (!shareEmail.trim()) {
+    setShareMessage('Please enter an email address')
+    return
   }
 
-    async function shareDocument() {
-    if (!shareEmail.trim()) {
-      setShareMessage('Please enter an email address')
-      return
-    }
+  setSharing(true)
+  setShareMessage('')
 
-    setSharing(true)
-    setShareMessage('')
+  try {
+    const data = await documentsApi.share(
+      documentId,
+      shareEmail.trim()
+    )
 
-    try {
-      const response = await fetch(
-        `${API_URL}/api/documents/${documentId}/share`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: shareEmail.trim(),
-          }),
-        }
-      )
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to share document')
-      }
-
-      setShareMessage(data.message)
-      setShareEmail('')
-    } catch (error) {
-      setShareMessage(
-        error instanceof Error
-          ? error.message
-          : 'Failed to share document'
-      )
-    } finally {
-      setSharing(false)
-    }
+    setShareMessage(data.message)
+    setShareEmail('')
+  } catch (error) {
+    setShareMessage(
+      error instanceof Error
+        ? error.message
+        : 'Failed to share document'
+    )
+  } finally {
+    setSharing(false)
   }
+}
 
   if (!editor || loading) {
     return <div>Loading document...</div>
