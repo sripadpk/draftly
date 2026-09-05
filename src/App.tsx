@@ -28,6 +28,42 @@ const USERS: User[] = [
   },
 ]
 
+function getUniqueFileTitle(
+  fileName: string,
+  existingDocuments: Document[]
+) {
+  const normalizedName = fileName.replace(
+    /(\.(txt|md))+$/i,
+    (match) => `.${match.split('.').pop()?.toLowerCase()}`
+  )
+
+  const lastDot = normalizedName.lastIndexOf('.')
+
+  const baseName =
+    lastDot > 0
+      ? normalizedName.substring(0, lastDot)
+      : normalizedName
+
+  const extension =
+    lastDot > 0
+      ? normalizedName.substring(lastDot)
+      : ''
+
+  const existingTitles = new Set(
+    existingDocuments.map((document) => document.title)
+  )
+
+  let title = `${baseName}${extension}`
+  let counter = 1
+
+  while (existingTitles.has(title)) {
+    title = `${baseName} (${counter})${extension}`
+    counter += 1
+  }
+
+  return title
+}
+
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [view, setView] = useState<'owned' | 'shared'>('owned')
@@ -137,20 +173,22 @@ function App() {
   try {
     const content = await file.text()
 
-    // Create a new document first
-    const createResponse = await fetch(
-      `${API_URL}/api/documents`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: file.name.replace(/\.(txt|md)$/i, ''),
-          ownerId: currentUser.id,
-        }),
-      }
-    )
+    // Create a uniquely named document
+const uniqueTitle = getUniqueFileTitle(file.name, documents)
+
+const createResponse = await fetch(
+  `${API_URL}/api/documents`,
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      title: uniqueTitle,
+      ownerId: currentUser.id,
+    }),
+  }
+)
 
     if (!createResponse.ok) {
       throw new Error('Failed to create document')
