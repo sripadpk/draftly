@@ -13,7 +13,6 @@ const PORT = Number(process.env.PORT) || 3000
 
 app.use(cors())
 app.use(express.json())
-app.use('/api', requireAuth, documentRoutes)
 
 app.get('/api/health', async (_req, res) => {
   const { error } = await supabase
@@ -33,6 +32,8 @@ app.get('/api/health', async (_req, res) => {
     message: 'Draftly API is connected to Supabase',
   })
 })
+
+app.use('/api', requireAuth, documentRoutes)
 
 app.use(errorHandler)
 
