@@ -2,25 +2,14 @@ import { useEffect, useState } from 'react'
 import DocumentEditor from './DocumentEditor'
 import { documentsApi } from './lib/api'
 import type { DocumentSummary } from './types'
+import { supabase } from './lib/supabase'
+import type { SharedDocumentResponse } from './types'
 
 type User = {
   id: string
   name: string
   email: string
 }
-
-const USERS: User[] = [
-  {
-    id: 'cf01d087-6bda-48dc-a21d-6dfc75832988',
-    name: 'Sripad PK',
-    email: 'sripad2602@gmail.com',
-  },
-  {
-    id: '755e3d83-2454-457a-a821-47a86f903873',
-    name: 'Alex Johnson',
-    email: 'alex@example.com',
-  },
-]
 
 function getUniqueFileTitle(
   fileName: string,
@@ -79,10 +68,10 @@ function App() {
   setLoading(true)
 
   try {
-    const ownedData = await documentsApi.listMine(currentUser.id)
+    const ownedData = await documentsApi.listMine()
     setDocuments(ownedData)
 
-    const sharedData = await documentsApi.listShared(currentUser.id)
+    const sharedData: SharedDocumentResponse[] = await documentsApi.listShared()
 
     const shared = sharedData
       .filter((item) => item.documents)
@@ -105,8 +94,7 @@ function App() {
 
   try {
     const document = await documentsApi.create(
-      'Untitled Document',
-      currentUser.id
+      'Untitled Document'
     )
 
     setDocuments((current) => [document, ...current])
@@ -143,11 +131,10 @@ function App() {
     const uniqueTitle = getUniqueFileTitle(
       file.name,
       documents
-    )
+    ) 
 
     const document = await documentsApi.create(
-      uniqueTitle,
-      currentUser.id
+      uniqueTitle
     )
 
     const paragraphs = content
@@ -196,39 +183,102 @@ function App() {
 
   // Login / user selection
   if (!currentUser) {
-    return (
-      <div className="login-page">
-        <div className="login-card">
-          <div className="logo">Draftly</div>
+  return (
+    <div className="login-page">
+      <div className="login-card">
+        <div className="logo">Draftly</div>
 
-          <h1>Welcome</h1>
-          <p>Choose an account to continue.</p>
+        <h1>Welcome</h1>
+        <p>Sign in to continue.</p>
 
-          <div className="user-options">
-            {USERS.map((user) => (
-              <button
-                key={user.id}
-                className="user-option"
-                onClick={() => {
-                  setCurrentUser(user)
-                  setView('owned')
-                }}
-              >
-                <div className="avatar">
-                  {user.name.charAt(0)}
-                </div>
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault()
 
-                <div>
-                  <strong>{user.name}</strong>
-                  <span>{user.email}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+            const form = event.currentTarget
+
+            const email = (
+              form.elements.namedItem('email') as HTMLInputElement
+            ).value
+
+            const password = (
+              form.elements.namedItem('password') as HTMLInputElement
+            ).value
+
+            await handleLogin(email, password)
+          }}
+        >
+          <input
+            name="email"
+            type="email"
+            placeholder="Email"
+            required
+          />
+
+          <input
+            name="password"
+            type="password"
+            placeholder="Password"
+            required
+          />
+
+          <button type="submit">
+            Sign In
+          </button>
+        </form>
+        <div className="demo-accounts">
+  <div className="demo-title">
+    Try with Demo accounts
+  </div>
+
+  <button
+    type="button"
+    className="demo-account"
+    onClick={() => {
+      const emailInput =
+        document.querySelector(
+          'input[name="email"]'
+        ) as HTMLInputElement
+
+      const passwordInput =
+        document.querySelector(
+          'input[name="password"]'
+        ) as HTMLInputElement
+
+      emailInput.value = 'alex@example.com'
+      passwordInput.value = 'alexalex'
+    }}
+  >
+    <strong>Alex Johnson</strong>
+    <span>alex@example.com</span>
+  </button>
+
+  <button
+    type="button"
+    className="demo-account"
+    onClick={() => {
+      const emailInput =
+        document.querySelector(
+          'input[name="email"]'
+        ) as HTMLInputElement
+
+      const passwordInput =
+        document.querySelector(
+          'input[name="password"]'
+        ) as HTMLInputElement
+
+      emailInput.value = 'demo@draftly.app'
+      passwordInput.value = 'draftlydemo'
+    }}
+  >
+    <strong>Demo User</strong>
+    <span>demo@draftly.app</span>
+  </button>
+</div>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   // Editor
   if (selectedDocumentId) {
@@ -384,6 +434,41 @@ function App() {
       </div>
     </div>
   )
+
+  async function handleLogin(
+  email: string,
+  password: string
+) {
+  const { data, error } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+  if (error) {
+    alert(error.message)
+    return
+  }
+
+  if (!data.user) {
+    alert('Login failed')
+    return
+  }
+
+  const { data: profile, error: profileError } =
+    await supabase
+      .from('users')
+      .select('id, name, email')
+      .eq('auth_user_id', data.user.id)
+      .single()
+
+  if (profileError || !profile) {
+    alert('Draftly profile not found')
+    return
+  }
+
+  setCurrentUser(profile)
+}
 }
 
 export default App

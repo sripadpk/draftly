@@ -1,4 +1,5 @@
 import type { Document, DocumentSummary, SharedDocumentResponse, ShareResponse } from '../types'
+import { supabase } from './supabase'
 
 const API_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -7,11 +8,23 @@ async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
   const response = await fetch(`${API_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+
+      ...(session?.access_token
+        ? {
+            Authorization: `Bearer ${session.access_token}`,
+          }
+        : {}),
+
       ...(options?.headers || {}),
     },
+
     ...options,
   })
 
@@ -27,17 +40,17 @@ async function request<T>(
 }
 
 export const documentsApi = {
-  listMine(userId: string) {
+  listMine() {
   return request<DocumentSummary[]>(
-    `/api/documents?ownerId=${userId}`
+    '/api/documents'
   )
 },
 
-  listShared(userId: string) {
-    return request<SharedDocumentResponse[]>(
-      `/api/shared-documents?userId=${userId}`
-    )
-  },
+  listShared() {
+  return request<SharedDocumentResponse[]>(
+    '/api/shared-documents'
+  )
+},
 
   get(id: string) {
   return request<Document>(
@@ -45,14 +58,13 @@ export const documentsApi = {
   )
 },
 
-  create(title: string, ownerId: string) {
+  create(title: string) {
   return request<DocumentSummary>(
     '/api/documents',
     {
       method: 'POST',
       body: JSON.stringify({
         title,
-        ownerId,
       }),
     }
   )
