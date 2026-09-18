@@ -49,12 +49,41 @@ function getUniqueFileTitle(
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const [view, setView] = useState<'owned' | 'shared'>('owned')
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login')
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
   const [sharedDocuments, setSharedDocuments] = useState<DocumentSummary[]>([])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  useEffect(() => {
+    async function restoreSession() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.user) {
+        setAuthLoading(false)
+        return
+      }
+
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .eq('auth_user_id', session.user.id)
+        .single()
+
+      if (!error && profile) {
+        setCurrentUser(profile)
+      }
+
+      setAuthLoading(false)
+    }
+
+    restoreSession()
+  }, [])
 
   useEffect(() => {
     if (currentUser) {
@@ -181,15 +210,70 @@ function App() {
   }
 }
 
-  // Login / user selection
-  if (!currentUser) {
+async function handleSignup(
+  name: string,
+  email: string,
+  password: string
+) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
+
+  if (error) {
+    alert(error.message)
+    return
+  }
+
+  if (!data.user || !data.session) {
+  alert('Account creation failed. No active session was created.')
+  return
+}
+
+  const { data: profile, error: profileError } =
+    await supabase
+      .from('users')
+      .insert({
+        name,
+        email,
+        auth_user_id: data.user.id,
+      })
+      .select('id, name, email')
+      .single()
+
+  if (profileError || !profile) {
+    alert(
+      profileError?.message ||
+        'Failed to create Draftly profile'
+    )
+    return
+  }
+
+  setCurrentUser(profile)
+}
+
+if (authLoading) {
+  return null
+}
+
+// Login / signup
+if (!currentUser) {
   return (
     <div className="login-page">
       <div className="login-card">
         <div className="logo">Draftly</div>
 
-        <h1>Welcome</h1>
-        <p>Sign in to continue.</p>
+        <h1>
+          {authMode === 'login'
+            ? 'Welcome back'
+            : 'Create your account'}
+        </h1>
+
+        <p>
+          {authMode === 'login'
+            ? 'Sign in to continue.'
+            : 'Start creating documents with Draftly.'}
+        </p>
 
         <form
           onSubmit={async (event) => {
@@ -197,88 +281,155 @@ function App() {
 
             const form = event.currentTarget
 
-            const email = (
-              form.elements.namedItem('email') as HTMLInputElement
-            ).value
+            const nameInput =
+              form.elements.namedItem('name') as
+                  | HTMLInputElement
+                  | null
 
-            const password = (
-              form.elements.namedItem('password') as HTMLInputElement
-            ).value
+              const email = (
+                form.elements.namedItem('email') as HTMLInputElement
+              ).value
 
-            await handleLogin(email, password)
-          }}
-        >
-          <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            required
-          />
+              const password = (
+                form.elements.namedItem('password') as HTMLInputElement
+              ).value
 
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            required
-          />
+              if (authMode === 'signup') {
+                const name = nameInput?.value || ''
 
-          <button type="submit">
-            Sign In
-          </button>
-        </form>
-        <div className="demo-accounts">
-  <div className="demo-title">
-    Try with Demo accounts
-  </div>
+                await handleSignup(
+                  name,
+                  email,
+                  password
+                )
+              } else {
+                await handleLogin(
+                  email,
+                  password
+                )
+              }
+            }}
+          >
+            {authMode === 'signup' && (
+              <input
+                name="name"
+                type="text"
+                placeholder="Full name"
+                required
+              />
+            )}
 
-  <button
-    type="button"
-    className="demo-account"
-    onClick={() => {
-      const emailInput =
-        document.querySelector(
-          'input[name="email"]'
-        ) as HTMLInputElement
+            <input
+              name="email"
+              type="email"
+              placeholder="Email"
+              required
+            />
 
-      const passwordInput =
-        document.querySelector(
-          'input[name="password"]'
-        ) as HTMLInputElement
+            <input
+              name="password"
+              type="password"
+              placeholder="Password"
+              required
+              minLength={6}
+            />
 
-      emailInput.value = 'alex@example.com'
-      passwordInput.value = 'alexalex'
-    }}
-  >
-    <strong>Alex Johnson</strong>
-    <span>alex@example.com</span>
-  </button>
+            <button type="submit">
+              {authMode === 'login'
+                ? 'Sign In'
+                : 'Create Account'}
+            </button>
+          </form>
 
-  <button
-    type="button"
-    className="demo-account"
-    onClick={() => {
-      const emailInput =
-        document.querySelector(
-          'input[name="email"]'
-        ) as HTMLInputElement
+          <div className="auth-switch">
+            {authMode === 'login' ? (
+              <>
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAuthMode('signup')
+                  }
+                >
+                  Create one
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAuthMode('login')
+                  }
+                >
+                  Sign in
+                </button>
+              </>
+            )}
+          </div>
 
-      const passwordInput =
-        document.querySelector(
-          'input[name="password"]'
-        ) as HTMLInputElement
+          {authMode === 'login' && (
+            <div className="demo-accounts">
+              <div className="demo-title">
+                Try with Demo accounts
+              </div>
 
-      emailInput.value = 'demo@draftly.app'
-      passwordInput.value = 'draftlydemo'
-    }}
-  >
-    <strong>Demo User</strong>
-    <span>demo@draftly.app</span>
-  </button>
-</div>
+              <button
+                type="button"
+                className="demo-account"
+                onClick={() => {
+                  const emailInput =
+                    document.querySelector(
+                      'input[name="email"]'
+                    ) as HTMLInputElement
+
+                  const passwordInput =
+                    document.querySelector(
+                      'input[name="password"]'
+                    ) as HTMLInputElement
+
+                  emailInput.value =
+                    'alex@example.com'
+
+                  passwordInput.value =
+                    'alexalex'
+                }}
+              >
+                <strong>Alex Johnson</strong>
+                <span>alex@example.com</span>
+              </button>
+
+              <button
+                type="button"
+                className="demo-account"
+                onClick={() => {
+                  const emailInput =
+                    document.querySelector(
+                      'input[name="email"]'
+                    ) as HTMLInputElement
+
+                  const passwordInput =
+                    document.querySelector(
+                      'input[name="password"]'
+                    ) as HTMLInputElement
+
+                  emailInput.value =
+                    'demo@draftly.app'
+
+                  passwordInput.value =
+                    'draftlydemo'
+                }}
+              >
+                <strong>Demo User</strong>
+                <span>demo@draftly.app</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  )
-}
+    )
+  }
 
   // Editor
   if (selectedDocumentId) {
@@ -306,12 +457,12 @@ function App() {
 
           <button
             className="switch-user-button"
-            onClick={() => {
+            onClick={async () => {
+              await supabase.auth.signOut()
               setCurrentUser(null)
-              setSelectedDocumentId(null)
             }}
           >
-            Switch user
+            Sign Out
           </button>
 
           <div className="avatar">

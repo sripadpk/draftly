@@ -45,7 +45,7 @@ function DocumentEditor({ documentId, onBack }: DocumentEditorProps) {
   }
 }
 
-  async function saveDocument() {
+async function saveDocument() {
   if (!editor) return
 
   setSaving(true)
@@ -56,7 +56,11 @@ function DocumentEditor({ documentId, onBack }: DocumentEditorProps) {
       content: editor.getJSON(),
     })
   } catch (error) {
-    console.error(error)
+    alert(
+      error instanceof Error
+        ? error.message
+        : 'Failed to save document'
+    )
   } finally {
     setSaving(false)
   }

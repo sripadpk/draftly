@@ -82,7 +82,7 @@ export async function getDocument(
   try {
     const id = req.params.id as string
 
-    const data = await getDocumentById(id)
+    const data = await getDocumentById(id, req.user!.id)
 
     return res.json(data)
   } catch {
@@ -119,7 +119,7 @@ export async function updateDocumentController(
       updates.content = content
     }
 
-    const data = await updateDocument(id, updates)
+    const data = await updateDocument(id, req.user!.id, updates)
 
     return res.json(data)
   } catch (error) {
@@ -146,7 +146,7 @@ export async function shareDocument(
       })
     }
 
-    const result = await shareDocumentService(id, email)
+    const result = await shareDocumentService(id, req.user!.id, email)
 
     return res.status(201).json(result)
   } catch (error) {
@@ -163,12 +163,19 @@ export async function shareDocument(
     }
 
     if (
-      message === 'The owner already has access' ||
-      message ===
-        'Document is already shared with this user'
-    ) {
-      return res.status(409).json({ message })
-    }
+  message === 'The owner already has access' ||
+  message ===
+    'Document is already shared with this user'
+) {
+  return res.status(409).json({ message })
+}
+
+if (
+  message ===
+  'You do not have permission to share this document'
+) {
+  return res.status(403).json({ message })
+}
 
     return res.status(500).json({ message })
   }

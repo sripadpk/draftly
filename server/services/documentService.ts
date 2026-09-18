@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { AppError } from '../middleware/AppError'
 
 export async function createDocument(
   title: string,
@@ -36,27 +37,64 @@ export async function getDocumentsByOwner(
   return data
 }
 
-export async function getDocumentById(id: string) {
-  const { data, error } = await supabase
+export async function getDocumentById(
+  id: string,
+  userId: string
+) {
+  const { data: document, error } = await supabase
     .from('documents')
     .select('*')
     .eq('id', id)
     .single()
 
-  if (error) {
-    throw new Error(error.message)
+  if (error || !document) {
+    throw new AppError('Document not found', 404)
   }
 
-  return data
+  // Owner always has access
+  if (document.owner_id === userId) {
+    return document
+  }
+
+  // Check whether the user has been granted access
+  const { data: share, error: shareError } = await supabase
+    .from('document_shares')
+    .select('id')
+    .eq('document_id', id)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (shareError) {
+    throw new AppError('Failed to check document access', 500)
+  }
+
+  if (!share) {
+    throw new AppError('Document not found', 404)
+  }
+
+  return document
 }
 
 export async function updateDocument(
   id: string,
-  updates: {
-    title?: string
-    content?: unknown
-  }
+  userId: string,
+  updates: { title?: string; content?: unknown }
 ) {
+  const { data: document, error: documentError } =
+    await supabase
+      .from('documents')
+      .select('id, owner_id')
+      .eq('id', id)
+      .single()
+
+  if (documentError || !document) {
+    throw new AppError('Document not found', 404)
+  }
+
+  if (document.owner_id !== userId) {
+    throw new AppError('You do not have permission to edit this document', 403)
+  }
+
   const { data, error } = await supabase
     .from('documents')
     .update({
@@ -68,7 +106,7 @@ export async function updateDocument(
     .single()
 
   if (error) {
-    throw new Error(error.message)
+    throw new AppError(error.message, 500)
   }
 
   return data
@@ -76,18 +114,9 @@ export async function updateDocument(
 
 export async function shareDocument(
   documentId: string,
+  userId: string,
   email: string
 ) {
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .select('id, name, email')
-    .eq('email', email)
-    .single()
-
-  if (userError || !user) {
-    throw new Error('User not found')
-  }
-
   const { data: document, error: documentError } =
     await supabase
       .from('documents')
@@ -97,6 +126,22 @@ export async function shareDocument(
 
   if (documentError || !document) {
     throw new Error('Document not found')
+  }
+
+  if (document.owner_id !== userId) {
+    throw new Error(
+      'You do not have permission to share this document'
+    )
+  }
+
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('id, name, email')
+    .eq('email', email)
+    .single()
+
+  if (userError || !user) {
+    throw new Error('User not found')
   }
 
   if (document.owner_id === user.id) {
