@@ -25,9 +25,9 @@ function DocumentEditor({ documentId, onBack }: DocumentEditorProps) {
     content: '',
   })
 
-  useEffect(() => {
-    loadDocument()
-  }, [documentId])
+useEffect(() => {
+  loadDocument()
+}, [documentId, editor])
 
   async function loadDocument() {
   try {
@@ -94,9 +94,52 @@ async function saveDocument() {
   }
 }
 
-  if (!editor || loading) {
-    return <div>Loading document...</div>
-  }
+if (!editor || loading) {
+  return (
+    <div className="editor-loading">
+      <div className="editor-loading-header">
+        <div className="loading-back">
+          ← Documents
+        </div>
+
+        <div className="loading-title" />
+
+        <div className="loading-actions">
+          <div className="loading-button" />
+          <div className="loading-share" />
+          <div className="loading-share-button" />
+        </div>
+      </div>
+
+      <div className="editor-loading-toolbar">
+        <div />
+        <div />
+        <div />
+        <span />
+        <div />
+        <div />
+        <span />
+        <div />
+        <div />
+      </div>
+
+      <main className="editor-loading-container">
+        <div className="editor-loading-paper">
+          <div className="skeleton-line long" />
+          <div className="skeleton-line medium" />
+          <div className="skeleton-line short" />
+
+          <div className="skeleton-gap" />
+
+          <div className="skeleton-line long" />
+          <div className="skeleton-line long" />
+          <div className="skeleton-line medium" />
+          <div className="skeleton-line short" />
+        </div>
+      </main>
+    </div>
+  )
+}
 
   return (
     <div className="editor-page">

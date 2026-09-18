@@ -259,39 +259,105 @@ if (authLoading) {
 // Login / signup
 if (!currentUser) {
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="logo">Draftly</div>
+    <div className="auth-page">
+      <div className="auth-brand">
+        <div className="auth-logo">
+          <span className="auth-logo-mark">D</span>
+          Draftly
+        </div>
 
-        <h1>
-          {authMode === 'login'
-            ? 'Welcome back'
-            : 'Create your account'}
-        </h1>
+        <div className="auth-content">
+          <div className="auth-eyebrow">
+            YOUR IDEAS, IN ONE PLACE
+          </div>
 
-        <p>
-          {authMode === 'login'
-            ? 'Sign in to continue.'
-            : 'Start creating documents with Draftly.'}
-        </p>
+          <h1>
+            Write.
+            <br />
+            Share.
+            <br />
+            <span>Build together.</span>
+          </h1>
 
-        <form
-          onSubmit={async (event) => {
-            event.preventDefault()
+          <p>
+            Create, edit and share documents
+            without the clutter.
+          </p>
 
-            const form = event.currentTarget
+          <div className="document-visual">
+            <div className="visual-window">
+              <div className="visual-toolbar">
+                <span />
+                <span />
+                <span />
+              </div>
 
-            const nameInput =
-              form.elements.namedItem('name') as
+              <div className="visual-content">
+                <div className="visual-title" />
+                <div className="visual-line long" />
+                <div className="visual-line medium" />
+                <div className="visual-line short" />
+
+                <div className="visual-line long" />
+                <div className="visual-line medium" />
+                <div className="visual-line short" />
+              </div>
+
+              <div className="visual-cursor" />
+            </div>
+
+            <div className="visual-card">
+              <strong>Shared with you</strong>
+              <span>Alex is viewing this document</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="auth-footer">
+        Designed & built by Sripad
+        </div>
+      </div>
+
+      <div className="auth-panel">
+        <div className="login-card">
+          <div className="mobile-logo">
+            <span className="auth-logo-mark">D</span>
+            Draftly
+          </div>
+
+          <div className="auth-heading">
+            <h2>
+              {authMode === 'login'
+                ? 'Welcome back'
+                : 'Create your account'}
+            </h2>
+
+            <p>
+              {authMode === 'login'
+                ? 'Sign in to continue to your workspace.'
+                : 'Start creating documents with Draftly.'}
+            </p>
+          </div>
+
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault()
+
+              const form = event.currentTarget
+
+              const nameInput =
+                form.elements.namedItem('name') as
                   | HTMLInputElement
                   | null
 
               const email = (
-                form.elements.namedItem('email') as HTMLInputElement
+                form.elements.namedItem('email') as
+                  HTMLInputElement
               ).value
 
               const password = (
-                form.elements.namedItem('password') as HTMLInputElement
+                form.elements.namedItem('password') as
+                  HTMLInputElement
               ).value
 
               if (authMode === 'signup') {
@@ -311,30 +377,42 @@ if (!currentUser) {
             }}
           >
             {authMode === 'signup' && (
-              <input
-                name="name"
-                type="text"
-                placeholder="Full name"
-                required
-              />
+              <div className="input-group">
+                <label>Full name</label>
+                <input
+                  name="name"
+                  type="text"
+                  placeholder="Your name"
+                  required
+                />
+              </div>
             )}
 
-            <input
-              name="email"
-              type="email"
-              placeholder="Email"
-              required
-            />
+            <div className="input-group">
+              <label>Email</label>
+              <input
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
 
-            <input
-              name="password"
-              type="password"
-              placeholder="Password"
-              required
-              minLength={6}
-            />
+            <div className="input-group">
+              <label>Password</label>
+              <input
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                required
+                minLength={6}
+              />
+            </div>
 
-            <button type="submit">
+            <button
+              className="auth-submit"
+              type="submit"
+            >
               {authMode === 'login'
                 ? 'Sign In'
                 : 'Create Account'}
@@ -372,7 +450,7 @@ if (!currentUser) {
           {authMode === 'login' && (
             <div className="demo-accounts">
               <div className="demo-title">
-                Try with Demo accounts
+                Or try a demo account
               </div>
 
               <button
@@ -428,8 +506,9 @@ if (!currentUser) {
           )}
         </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   // Editor
   if (selectedDocumentId) {
