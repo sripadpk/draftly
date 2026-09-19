@@ -1,6 +1,17 @@
 import { Router } from 'express'
-import { supabase } from '../lib/supabase'
-import { createDocument, getDocuments, getDocument, updateDocumentController, shareDocument, getSharedDocumentsController } from '../controllers/documentController'
+
+import {
+  createDocument,
+  getDocuments,
+  getDocument,
+  updateDocumentController,
+  shareDocument,
+  getSharedDocumentsController,
+  moveDocumentToTrashController,
+  restoreDocumentController,
+  permanentlyDeleteDocumentController,
+  getTrashDocumentsController,
+} from '../controllers/documentController'
 
 const router = Router()
 
@@ -10,10 +21,43 @@ router.get('/documents', getDocuments)
 
 router.get('/documents/:id', getDocument)
 
-router.patch('/documents/:id', updateDocumentController)
+router.patch(
+  '/documents/:id',
+  updateDocumentController
+)
 
-router.post('/documents/:id/share', shareDocument)
+router.post(
+  '/documents/:id/share',
+  shareDocument
+)
 
-router.get('/shared-documents', getSharedDocumentsController)
+/*
+ * Trash
+ */
+
+router.get(
+  '/trash',
+  getTrashDocumentsController
+)
+
+router.patch(
+  '/documents/:id/trash',
+  moveDocumentToTrashController
+)
+
+router.patch(
+  '/documents/:id/restore',
+  restoreDocumentController
+)
+
+router.delete(
+  '/documents/:id',
+  permanentlyDeleteDocumentController
+)
+
+router.get(
+  '/shared-documents',
+  getSharedDocumentsController
+)
 
 export default router

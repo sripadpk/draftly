@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase'
 import documentRoutes from './routes/documentRoutes'
 import { errorHandler } from './middleware/errorHandler'
 import { requireAuth } from './middleware/auth'
+import aiRoutes from './routes/aiRoutes'
 
 dotenv.config()
 
@@ -34,6 +35,8 @@ app.get('/api/health', async (_req, res) => {
 })
 
 app.use('/api', requireAuth, documentRoutes)
+
+app.use('/api/ai', requireAuth, aiRoutes)
 
 app.use(errorHandler)
 

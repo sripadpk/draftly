@@ -28,6 +28,7 @@ export async function getDocumentsByOwner(
     .from('documents')
     .select('*')
     .eq('owner_id', ownerId)
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
 
   if (error) {
@@ -45,6 +46,7 @@ export async function getDocumentById(
     .from('documents')
     .select('*')
     .eq('id', id)
+    .is('deleted_at', null)
     .single()
 
   if (error || !document) {
@@ -65,7 +67,10 @@ export async function getDocumentById(
     .maybeSingle()
 
   if (shareError) {
-    throw new AppError('Failed to check document access', 500)
+    throw new AppError(
+      'Failed to check document access',
+      500
+    )
   }
 
   if (!share) {
@@ -83,7 +88,7 @@ export async function updateDocument(
   const { data: document, error: documentError } =
     await supabase
       .from('documents')
-      .select('id, owner_id')
+      .select('id, owner_id, deleted_at')
       .eq('id', id)
       .single()
 
@@ -92,7 +97,17 @@ export async function updateDocument(
   }
 
   if (document.owner_id !== userId) {
-    throw new AppError('You do not have permission to edit this document', 403)
+    throw new AppError(
+      'You do not have permission to edit this document',
+      403
+    )
+  }
+
+  if (document.deleted_at) {
+    throw new AppError(
+      'Cannot edit a document in Trash',
+      400
+    )
   }
 
   const { data, error } = await supabase
@@ -112,6 +127,165 @@ export async function updateDocument(
   return data
 }
 
+/*
+ * Move a document to Trash.
+ * This is a soft delete — the document row remains in the database.
+ */
+export async function moveDocumentToTrash(
+  id: string,
+  userId: string
+) {
+  const { data: document, error } = await supabase
+    .from('documents')
+    .select('id, owner_id, deleted_at')
+    .eq('id', id)
+    .single()
+
+  if (error || !document) {
+    throw new AppError('Document not found', 404)
+  }
+
+  if (document.owner_id !== userId) {
+    throw new AppError(
+      'You do not have permission to move this document to Trash',
+      403
+    )
+  }
+
+  if (document.deleted_at) {
+    throw new AppError(
+      'Document is already in Trash',
+      400
+    )
+  }
+
+  const { data, error: updateError } = await supabase
+    .from('documents')
+    .update({
+      deleted_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (updateError) {
+    throw new AppError(updateError.message, 500)
+  }
+
+  return data
+}
+
+/*
+ * Restore a document from Trash.
+ */
+export async function restoreDocument(
+  id: string,
+  userId: string
+) {
+  const { data: document, error } = await supabase
+    .from('documents')
+    .select('id, owner_id, deleted_at')
+    .eq('id', id)
+    .single()
+
+  if (error || !document) {
+    throw new AppError('Document not found', 404)
+  }
+
+  if (document.owner_id !== userId) {
+    throw new AppError(
+      'You do not have permission to restore this document',
+      403
+    )
+  }
+
+  if (!document.deleted_at) {
+    throw new AppError(
+      'Document is not in Trash',
+      400
+    )
+  }
+
+  const { data, error: updateError } = await supabase
+    .from('documents')
+    .update({
+      deleted_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (updateError) {
+    throw new AppError(updateError.message, 500)
+  }
+
+  return data
+}
+
+/*
+ * Permanently delete a document.
+ * This should only be called from the Trash.
+ */
+export async function permanentlyDeleteDocument(
+  id: string,
+  userId: string
+) {
+  const { data: document, error } = await supabase
+    .from('documents')
+    .select('id, owner_id, deleted_at')
+    .eq('id', id)
+    .single()
+
+  if (error || !document) {
+    throw new AppError('Document not found', 404)
+  }
+
+  if (document.owner_id !== userId) {
+    throw new AppError(
+      'You do not have permission to delete this document',
+      403
+    )
+  }
+
+  if (!document.deleted_at) {
+    throw new AppError(
+      'Only documents in Trash can be permanently deleted',
+      400
+    )
+  }
+
+  const { error: deleteError } = await supabase
+    .from('documents')
+    .delete()
+    .eq('id', id)
+
+  if (deleteError) {
+    throw new AppError(deleteError.message, 500)
+  }
+
+  return {
+    message: 'Document permanently deleted',
+  }
+}
+
+export async function getTrashDocuments(
+  userId: string
+) {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('owner_id', userId)
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return data
+}
+
 export async function shareDocument(
   documentId: string,
   userId: string,
@@ -120,7 +294,7 @@ export async function shareDocument(
   const { data: document, error: documentError } =
     await supabase
       .from('documents')
-      .select('id, owner_id')
+      .select('id, owner_id, deleted_at')
       .eq('id', documentId)
       .single()
 
@@ -131,6 +305,12 @@ export async function shareDocument(
   if (document.owner_id !== userId) {
     throw new Error(
       'You do not have permission to share this document'
+    )
+  }
+
+  if (document.deleted_at) {
+    throw new Error(
+      'Cannot share a document in Trash'
     )
   }
 
@@ -186,6 +366,7 @@ export async function getSharedDocuments(
         title,
         updated_at,
         owner_id,
+        deleted_at,
         users!documents_owner_id_fkey (
           name,
           email

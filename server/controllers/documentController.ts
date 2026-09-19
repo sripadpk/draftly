@@ -1,4 +1,16 @@
-import { createDocument as createDocumentService, getDocumentsByOwner, getDocumentById, updateDocument, shareDocument as shareDocumentService, getSharedDocuments } from '../services/documentService'
+import {
+  createDocument as createDocumentService,
+  getDocumentsByOwner,
+  getDocumentById,
+  updateDocument,
+  shareDocument as shareDocumentService,
+  getSharedDocuments,
+  moveDocumentToTrash,
+  restoreDocument,
+  permanentlyDeleteDocument,
+  getTrashDocuments,
+} from '../services/documentService'
+
 import { Request, Response } from 'express'
 
 export async function createDocument(
@@ -35,26 +47,6 @@ export async function createDocument(
   }
 }
 
-export async function listDocuments(
-  req: Request,
-  res: Response
-) {
-  try {
-    const { ownerId } = req.query
-
-    // We'll connect this to the service in the next step.
-    return res.status(200).json({
-      ownerId,
-    })
-  } catch (error) {
-    console.error(error)
-
-    return res.status(500).json({
-      message: 'Failed to load documents',
-    })
-  }
-}
-
 export async function getDocuments(
   req: Request,
   res: Response
@@ -82,7 +74,10 @@ export async function getDocument(
   try {
     const id = req.params.id as string
 
-    const data = await getDocumentById(id, req.user!.id)
+    const data = await getDocumentById(
+      id,
+      req.user!.id
+    )
 
     return res.json(data)
   } catch {
@@ -119,7 +114,159 @@ export async function updateDocumentController(
       updates.content = content
     }
 
-    const data = await updateDocument(id, req.user!.id, updates)
+    const data = await updateDocument(
+      id,
+      req.user!.id,
+      updates
+    )
+
+    return res.json(data)
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Something went wrong'
+
+    if (
+      message === 'Document not found'
+    ) {
+      return res.status(404).json({ message })
+    }
+
+    if (
+      message ===
+      'You do not have permission to edit this document'
+    ) {
+      return res.status(403).json({ message })
+    }
+
+    if (
+      message ===
+      'Cannot edit a document in Trash'
+    ) {
+      return res.status(400).json({ message })
+    }
+
+    return res.status(500).json({ message })
+  }
+}
+
+export async function moveDocumentToTrashController(
+  req: Request,
+  res: Response
+) {
+  try {
+    const id = req.params.id as string
+
+    const data = await moveDocumentToTrash(
+      id,
+      req.user!.id
+    )
+
+    return res.json({
+      message: 'Document moved to Trash',
+      document: data,
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Something went wrong'
+
+    if (message === 'Document not found') {
+      return res.status(404).json({ message })
+    }
+
+    if (
+      message ===
+      'You do not have permission to move this document to Trash'
+    ) {
+      return res.status(403).json({ message })
+    }
+
+    return res.status(400).json({ message })
+  }
+}
+
+export async function restoreDocumentController(
+  req: Request,
+  res: Response
+) {
+  try {
+    const id = req.params.id as string
+
+    const data = await restoreDocument(
+      id,
+      req.user!.id
+    )
+
+    return res.json({
+      message: 'Document restored',
+      document: data,
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Something went wrong'
+
+    if (message === 'Document not found') {
+      return res.status(404).json({ message })
+    }
+
+    if (
+      message ===
+      'You do not have permission to restore this document'
+    ) {
+      return res.status(403).json({ message })
+    }
+
+    return res.status(400).json({ message })
+  }
+}
+
+export async function permanentlyDeleteDocumentController(
+  req: Request,
+  res: Response
+) {
+  try {
+    const id = req.params.id as string
+
+    const result = await permanentlyDeleteDocument(
+      id,
+      req.user!.id
+    )
+
+    return res.json(result)
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Something went wrong'
+
+    if (message === 'Document not found') {
+      return res.status(404).json({ message })
+    }
+
+    if (
+      message ===
+      'You do not have permission to delete this document'
+    ) {
+      return res.status(403).json({ message })
+    }
+
+    return res.status(400).json({ message })
+  }
+}
+
+export async function getTrashDocumentsController(
+  req: Request,
+  res: Response
+) {
+  try {
+    const data = await getTrashDocuments(
+      req.user!.id
+    )
 
     return res.json(data)
   } catch (error) {
@@ -146,7 +293,11 @@ export async function shareDocument(
       })
     }
 
-    const result = await shareDocumentService(id, req.user!.id, email)
+    const result = await shareDocumentService(
+      id,
+      req.user!.id,
+      email
+    )
 
     return res.status(201).json(result)
   } catch (error) {
@@ -163,19 +314,27 @@ export async function shareDocument(
     }
 
     if (
-  message === 'The owner already has access' ||
-  message ===
-    'Document is already shared with this user'
-) {
-  return res.status(409).json({ message })
-}
+      message ===
+        'The owner already has access' ||
+      message ===
+        'Document is already shared with this user'
+    ) {
+      return res.status(409).json({ message })
+    }
 
-if (
-  message ===
-  'You do not have permission to share this document'
-) {
-  return res.status(403).json({ message })
-}
+    if (
+      message ===
+      'You do not have permission to share this document'
+    ) {
+      return res.status(403).json({ message })
+    }
+
+    if (
+      message ===
+      'Cannot share a document in Trash'
+    ) {
+      return res.status(400).json({ message })
+    }
 
     return res.status(500).json({ message })
   }
