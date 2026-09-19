@@ -84,7 +84,7 @@ function App() {
     useState(false)
 
   const [aiPrompt, setAIPrompt] = useState('')
-  const [generatingAI, setGeneratingAI] =
+  const [,setGeneratingAI] =
     useState(false)
 
   const [trashLoading, setTrashLoading] =
@@ -1126,12 +1126,49 @@ async function permanentlyDelete(
       </div>
 
             {showAIPrompt && (
-        <div className="ai-modal-overlay">
-          <div className="ai-modal">
-            ...
-          </div>
-        </div>
-      )}
+  <div className="ai-modal-overlay">
+    <div className="ai-modal">
+      <h2>✨ Write with AI</h2>
+
+      <p>
+        Tell AI what you'd like to write.
+      </p>
+
+      <textarea
+        value={aiPrompt}
+        onChange={(event) =>
+          setAIPrompt(event.target.value)
+        }
+        placeholder="Describe what you'd like AI to write..."
+        rows={6}
+        disabled={false}
+      />
+
+      <div className="ai-modal-actions">
+        <button
+          type="button"
+          className="ai-cancel-button"
+          onClick={() => {
+            setShowAIPrompt(false)
+            setAIPrompt('')
+          }}
+          disabled={false}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="ai-generate-button"
+          onClick={generateAIDocument}
+          disabled={!aiPrompt.trim()}
+        >
+          ✨ Generate
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {documentToDelete && (
         <div className="delete-modal-overlay">
